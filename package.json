@@ -1,0 +1,35 @@
+{
+  "name": "adra-mern-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ADRA MERN prototype for AI-driven regulatory workflow automation and data anonymisation.",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "PORT=5001 node server/index.js",
+    "dev:client": "vite --config client/vite.config.js --host 127.0.0.1",
+    "build": "vite build --config client/vite.config.js",
+    "start": "node server/index.js",
+    "evaluate": "node scripts/evaluate.js",
+    "train": "node scripts/train_nb_classifier.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.4",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.19.3",
+    "multer": "^2.1.1",
+    "pdf-lib": "^1.17.1",
+    "pdf-parse": "^2.4.5",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "vite": "^7.1.7",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

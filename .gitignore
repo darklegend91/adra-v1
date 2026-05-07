@@ -1,0 +1,12 @@
+node_modules
+client/dist
+.env
+.DS_Store
+npm-debug.log*
+.claude
+data/
+.env.example
+plan.md
+docs/
+reports/
+output/
