@@ -23,10 +23,10 @@ const emptyData = {
     targetVolume: "100k+ ADR/SAE records with server-side pagination, MongoDB aggregations and precomputed medicine/cohort signal collections.",
     principles: []
   },
-  bioGptGuardrails: [
+  LLMGuardrails: [
     {
       control: "Exact source text only",
-      detail: "BioGPT can only check agreement with exact source spans.",
+      detail: "LLM can only check agreement with exact source spans.",
       basis: "Stored values remain extracted from the uploaded report.",
       status: "Locked"
     },
@@ -37,7 +37,7 @@ const emptyData = {
       status: "Enforced"
     }
   ],
-  bioGptExtractionRows: [],
+  LLMExtractionRows: [],
   medicineAnalytics: [],
   pivotRows: [],
   piiDefinitions: [
@@ -840,7 +840,7 @@ const INSPECTION_STEPS = [
   { label: "Reviewer draft", done: false }
 ];
 
-function IntakePage({ bioGptGuardrails, bioGptExtractionRows, onReportsProcessed }) {
+function IntakePage({ LLMGuardrails, LLMExtractionRows, onReportsProcessed }) {
   const [intakeState, setIntakeState] = useState({ loading: false, message: "", reports: [] });
   const [inspectionFile, setInspectionFile] = useState(null);
   const [inspectionMsg, setInspectionMsg] = useState("");
@@ -993,15 +993,15 @@ function IntakePage({ bioGptGuardrails, bioGptExtractionRows, onReportsProcessed
       <section className="dashboard-grid">
         <article className="panel">
           <div className="panel-heading">
-            <h2>BioGPT extraction guardrails</h2>
+            <h2>LLM extraction guardrails</h2>
             <Badge tone="purple">Advisory only</Badge>
           </div>
           <p>
-            BioGPT improves biomedical entity tagging and relation hints, but it never predicts missing report facts,
+            LLM improves biomedical entity tagging and relation hints, but it never predicts missing report facts,
             edits original extracted values, or fills data not present in the source document.
           </p>
           <div className="evidence-grid compact">
-            {(bioGptGuardrails || []).map((item) => (
+            {(LLMGuardrails || []).map((item) => (
               <article className="evidence-card" key={item.control}>
                 <strong>{item.control}</strong>
                 <span>{item.detail}</span>
@@ -1013,18 +1013,18 @@ function IntakePage({ bioGptGuardrails, bioGptExtractionRows, onReportsProcessed
         </article>
         <article className="panel">
           <div className="panel-heading">
-            <h2>BioGPT decision preview</h2>
+            <h2>LLM decision preview</h2>
             <Badge tone="green">No overwrite</Badge>
           </div>
           <DataTable
             columns={[
               { key: "field", label: "Field" },
               { key: "source", label: "Source fact" },
-              { key: "bioGpt", label: "BioGPT output" },
+              { key: "LLM", label: "LLM output" },
               { key: "decision", label: "Decision" },
               { key: "basis", label: "Basis" }
             ]}
-            rows={bioGptExtractionRows || []}
+            rows={LLMExtractionRows || []}
           />
         </article>
       </section>
@@ -1430,25 +1430,25 @@ function ReportDetail({ report, recordDetails, user }) {
       </section>
       <section className="panel">
         <div className="panel-heading">
-          <h2>BioGPT advisory layer</h2>
+          <h2>LLM advisory layer</h2>
           <Badge tone="purple">Does not modify report data</Badge>
         </div>
         <p>
-          The detailed record keeps original OCR/parser facts immutable. BioGPT can tag exact biomedical spans
+          The detailed record keeps original OCR/parser facts immutable. LLM can tag exact biomedical spans
           and relation labels only when the suggestion is backed by a source trace.
         </p>
         <DataTable
           columns={[
             { key: "field", label: "Field" },
             { key: "source", label: "Extracted source fact" },
-            { key: "bioGpt", label: "BioGPT candidate" },
+            { key: "LLM", label: "LLM candidate" },
             { key: "decision", label: "Storage decision" },
             { key: "basis", label: "Evidence basis" }
           ]}
-          rows={(selected.aiFindings?.bioGpt?.findings || []).map((finding) => ({
+          rows={(selected.aiFindings?.LLM?.findings || []).map((finding) => ({
             field: finding.field,
             source: finding.value || "Missing",
-            bioGpt: finding.presentAsExactSpan ? `${finding.value} | exact source span` : "No exact-span agreement",
+            LLM: finding.presentAsExactSpan ? `${finding.value} | exact source span` : "No exact-span agreement",
             decision: "Keep extracted source value",
             basis: finding.basis
           }))}
@@ -1579,7 +1579,7 @@ function ScalePage({ scalability, reportCount }) {
             <li>No edit or delete route for submitted records.</li>
             <li>No loading all records into React tables.</li>
             <li>No admin route that reveals patient identity tokens.</li>
-            <li>No BioGPT prediction to fill missing report facts.</li>
+            <li>No LLM prediction to fill missing report facts.</li>
           </ul>
         </article>
       </section>
@@ -2103,22 +2103,22 @@ function CohortsPage({ data, reports = [] }) {
 function ConfidencePage({ reports }) {
   const avgConfidence = reports.reduce((sum, report) => sum + Number(report.confidence || 0), 0) / Math.max(reports.length, 1);
   const lowConfidence = reports.filter((report) => Number(report.confidence || 0) < 0.65).length;
-  const bioGptAgreement = reports.reduce((sum, report) => sum + Number(report.confidenceBreakdown?.bioGptAgreement || 0), 0) / Math.max(reports.length, 1);
+  const LLMAgreement = reports.reduce((sum, report) => sum + Number(report.confidenceBreakdown?.LLMAgreement || 0), 0) / Math.max(reports.length, 1);
   const parserConfidence = reports.reduce((sum, report) => sum + Number(report.confidenceBreakdown?.parser || 0), 0) / Math.max(reports.length, 1);
   return (
     <>
-      <PageHeader title="Confidence and extraction quality" subtitle="Score formula: field coverage × 0.45 + parser confidence × 0.35 + source trace × 0.20. BioGPT agreement is advisory metadata only." />
+      <PageHeader title="Confidence and extraction quality" subtitle="Score formula: field coverage × 0.45 + parser confidence × 0.35 + source trace × 0.20. LLM agreement is advisory metadata only." />
       <section className="stats-grid">
         <StatCard label="Avg confidence" value={percent(avgConfidence)} helper="Weighted pipeline score" accent="blue" />
         <StatCard label="Low confidence" value={lowConfidence} helper="Need manual review" accent="red" />
-        <StatCard label="BioGPT agreement" value={percent(bioGptAgreement)} helper="Exact-span agreement only" accent="purple" />
+        <StatCard label="LLM agreement" value={percent(LLMAgreement)} helper="Exact-span agreement only" accent="purple" />
         <StatCard label="Parser confidence" value={percent(parserConfidence)} helper="Digital parser/OCR state" accent="teal" />
       </section>
       <section className="dashboard-grid">
         <article className="panel">
           <h2>Formula</h2>
           <p className="formula">Final confidence = field coverage × 0.45 + parser × 0.35 + source trace × 0.20</p>
-          <p className="basis-note">BioGPT agreement is stored as advisory metadata and does not alter the confidence formula. Parser confidence: digital PDF = 0.72, XLSX = 0.78, needs-OCR = 0.25.</p>
+          <p className="basis-note">LLM agreement is stored as advisory metadata and does not alter the confidence formula. Parser confidence: digital PDF = 0.72, XLSX = 0.78, needs-OCR = 0.25.</p>
           <Badge tone="red">Not a prediction or clinical causality score</Badge>
         </article>
         <article className="panel">
@@ -2364,7 +2364,7 @@ function MlModelsPage({ reports }) {
             <li>Train severity classifier on labelled CDSCO/PvPI cases.</li>
             <li>Train completeness router from reviewer outcomes.</li>
             <li>Train duplicate/follow-up model with patient-token candidate pairs.</li>
-            <li>Keep BioGPT limited to exact source-span agreement and evidence retrieval.</li>
+            <li>Keep LLM limited to exact source-span agreement and evidence retrieval.</li>
             <li>Log model version, threshold, features and reviewer override for every prediction.</li>
           </ul>
         </article>
@@ -4227,8 +4227,8 @@ function App() {
     overview: <Overview {...pageProps} />,
     intake: (
       <IntakePage
-        bioGptGuardrails={data.bioGptGuardrails}
-        bioGptExtractionRows={data.bioGptExtractionRows}
+        LLMGuardrails={data.LLMGuardrails}
+        LLMExtractionRows={data.LLMExtractionRows}
         onReportsProcessed={(reports) => setData((current) => ({ ...current, reports: mergeReports(current.reports, reports) }))}
       />
     ),
