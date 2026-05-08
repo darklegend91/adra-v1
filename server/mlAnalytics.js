@@ -1,4 +1,5 @@
 import { classifySeverity, evaluateSeverityClassifier } from "./ai/severityClassifier.js";
+import { isLrModelLoaded, getLrModelMeta } from "./ai/lrClassifier.js";
 
 const SERIOUS_LABELS = new Set([
   "Death",
@@ -33,8 +34,10 @@ export function buildMlAnalytics(reports) {
 
   return {
     generatedAt: new Date().toISOString(),
-    modelMode: "baseline-rules-ml-ready",
-    modelNote: "Current models are deterministic baseline classifiers over collected records. Replace with trained ML after labelled CDSCO datasets are available.",
+    modelMode: isLrModelLoaded() ? "ml-active" : "rule-based-fallback",
+    modelNote: isLrModelLoaded()
+      ? `LR model active (Macro-F1 ${getLrModelMeta()?.macroF1}, MCC ${getLrModelMeta()?.mcc}). Trained on 2,662 ICSR rows — MedDRA PT/SOC/LLT + outcome + narrative + drug. Fires when structured seriousness label is absent or ambiguous.`
+      : "LR model not loaded. Run: python scripts/train_severity_classifier.py — then restart the server.",
     dataset: {
       records: rows.length,
       evaluatedRecords: evaluated.length,
@@ -59,7 +62,10 @@ export function buildMlAnalytics(reports) {
         id: "severity-four-class",
         name: "CDSCO four-class severity classifier",
         task: "Classifies cases into death / disability / hospitalisation / others per CDSCO SAE categories.",
-        modelStatus: { type: "real", note: "Deterministic rule classifier: label-map first, then outcome-map, then keyword regex over narrative. No trained weights. Verified on 2,662 ICSR rows (Macro-F1 0.789, MCC 0.712)." },
+        modelStatus: isLrModelLoaded()
+          ? { type: "ml-active", note: `ML active: Logistic Regression trained on 2,662 ICSR rows (MedDRA PT/SOC/LLT + narrative + outcome). CV Macro-F1 ${getLrModelMeta()?.macroF1}, MCC ${getLrModelMeta()?.mcc}. Tier 1/2: label-map (confidence 0.95/0.90). Tier 3: LR model. Tier 4: regex.` }
+          : { type: "rule-only", note: "Rule classifier only. Run python scripts/train_severity_classifier.py and restart server to activate ML model." },
+        mlModel: isLrModelLoaded() ? { type: "logistic-regression", macroF1: getLrModelMeta()?.macroF1, mcc: getLrModelMeta()?.mcc, features: getLrModelMeta()?.features, trainedOn: getLrModelMeta()?.trainedOn, trainedAt: getLrModelMeta()?.trainedAt } : null,
         accuracy: fourClassMetrics ? fourClassMetrics.macroF1 : null,
         precision: fourClassMetrics ? fourClassMetrics.macroPrecision : null,
         recall: fourClassMetrics ? fourClassMetrics.macroRecall : null,
@@ -68,7 +74,9 @@ export function buildMlAnalytics(reports) {
         support: fourClassMetrics ? fourClassMetrics.support : 0,
         perClass: fourClassMetrics ? fourClassMetrics.perClass : [],
         confusionMatrix: fourClassMetrics ? fourClassMetrics.confusionMatrix : null,
-        basis: "Rule/label-based four-class classifier against CDSCO seriousness fields."
+        basis: isLrModelLoaded()
+          ? "Cascade: seriousness label-map (Tier 1) → outcome-map (Tier 2) → LR ML model trained on MedDRA+narrative (Tier 3) → keyword regex (Tier 4)."
+          : "Rule/label-map cascade. LR model not loaded — restart after running train_severity_classifier.py."
       },
       {
         id: "completeness-routing",
@@ -195,7 +203,33 @@ function buildMedicineSignals(rows) {
     grouped.set(key, current);
   });
 
-  return [...grouped.values()]
+  const allPairs = [...grouped.values()];
+
+  // PRR / ROR / IC (Evans 2001 disproportionality algorithm)
+  allPairs.forEach((pair) => {
+    const a = pair.reports;                             // drug AND reaction
+    const b = rows.filter((r) => r.medicine === pair.medicine && r.reaction !== pair.reaction).length;  // drug, NOT reaction
+    const c = rows.filter((r) => r.medicine !== pair.medicine && r.reaction === pair.reaction).length;  // NOT drug, reaction
+    const d = total - a - b - c;                        // neither
+
+    const prr = (b + c + d > 0 && (a + b) > 0 && (c + d) > 0)
+      ? safeDivide(a / (a + b), c / Math.max(c + d, 1))
+      : null;
+    const ror = (b > 0 && c > 0)
+      ? safeDivide(a * d, b * c)
+      : null;
+    const ic = (a > 0 && (a + b) > 0 && (a + c) > 0)
+      ? Number((Math.log2((a * total) / ((a + b) * (a + c)))).toFixed(3))
+      : null;
+
+    pair.prr = prr !== null ? Number(prr.toFixed(3)) : null;
+    pair.ror = ror !== null ? Number(ror.toFixed(3)) : null;
+    pair.ic  = ic;
+    pair.prrSignal = prr !== null && prr >= 2.0 && a >= 3;
+    pair.contingency = { a, b, c, d };
+  });
+
+  return allPairs
     .map((row) => {
       const prevalence = row.reports / total;
       const seriousRate = row.serious / Math.max(row.reports, 1);
@@ -206,8 +240,8 @@ function buildMedicineSignals(rows) {
         avgConfidence: row.confidenceSum / Math.max(row.reports, 1),
         avgScore: Math.round(row.scoreSum / Math.max(row.reports, 1)),
         signalScore,
-        priority: signalScore >= 0.7 ? "High" : signalScore >= 0.45 ? "Medium" : "Watch",
-        basis: `${row.reports} report(s), ${Math.round(seriousRate * 100)}% serious, average confidence ${Math.round((row.confidenceSum / Math.max(row.reports, 1)) * 100)}%.`
+        priority: row.prrSignal ? "Signal" : signalScore >= 0.7 ? "High" : signalScore >= 0.45 ? "Medium" : "Watch",
+        basis: `${row.reports} report(s), ${Math.round(seriousRate * 100)}% serious, PRR ${row.prr ?? "N/A"}, ROR ${row.ror ?? "N/A"}.`
       };
     })
     .sort((a, b) => b.signalScore - a.signalScore)

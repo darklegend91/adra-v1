@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: adra-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false       # set manually in Render dashboard
+      - key: MONGODB_DB
+        value: adra
+      - key: JWT_SECRET
+        sync: false       # set manually in Render dashboard
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: FRONTEND_URL
+        sync: false       # set to your Vercel URL, e.g. https://adra.vercel.app

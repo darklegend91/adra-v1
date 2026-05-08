@@ -1,0 +1,9 @@
+{
+  "buildCommand": "vite build --config client/vite.config.js",
+  "outputDirectory": "client/dist",
+  "installCommand": "npm install",
+  "framework": null,
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

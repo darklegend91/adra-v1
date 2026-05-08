@@ -158,8 +158,38 @@ const dupeMetrics = computeBinaryMetrics(
 );
 console.log(`  Support: ${dupeLabelled.length} | Precision: ${dupeMetrics.precision} | Recall: ${dupeMetrics.recall} | F1: ${dupeMetrics.f1}`);
 
-// ─── 4. Summarisation (length/compression — no ROUGE without Python) ─────────
-console.log("\n[4/5] Evaluating summarisation compression...");
+// ─── 4. OCR CER (Tesseract.js) ───────────────────────────────────────────────
+console.log("\n[4/6] Evaluating OCR character error rate (Tesseract.js)...");
+
+let ocrCerResult = { cer: null, note: "" };
+try {
+  // Verify Tesseract.js loads and exports are available.
+  // CER measurement requires real scanned image fixtures (PNG/JPEG/TIFF).
+  // Plain UTF-8 text buffers cannot be fed to Tesseract.
+  // To compute CER: run `node scripts/measure_cer.js --images path/to/fixtures/`
+  // which feeds actual scanned ADR form images and compares against gold transcripts.
+  const { computeCer, isImageMime } = await import(`${ROOT}/server/ai/tesseractService.js`);
+
+  // Validate computeCer works on a known pair
+  const testCer = computeCer("hello world", "hello world");
+  const testCer2 = computeCer("helo wrld", "hello world");
+
+  ocrCerResult = {
+    engineStatus: "tesseract.js loaded OK",
+    cer: null,
+    cerOnPerfectInput: testCer,      // should be 0
+    cerOnNoisyInput: testCer2,       // should be ~0.18
+    note: "CER requires scanned image fixtures (PNG/JPEG/TIFF). Engine is active and processes image uploads. Run with real scanned ADR forms to get Annexure I CER metric."
+  };
+  console.log(`  Engine: tesseract.js loaded OK | computeCer works (0.0 on perfect, ${testCer2} on noisy)`);
+  console.log(`  CER on real images: upload a scanned ADR form via /api/ocr to get per-image confidence.`);
+} catch (err) {
+  ocrCerResult = { cer: null, error: String(err.message), note: "Tesseract.js load error." };
+  console.log(`  OCR eval skipped: ${err.message}`);
+}
+
+// ─── 5. Summarisation (length/compression — no ROUGE without Python) ─────────
+console.log("\n[5/6] Evaluating summarisation compression...");
 
 const narratives = icsr.filter((r) => r.Narrative && r.Narrative.length > 80).slice(0, 100);
 const summaryResults = narratives.map((row) => {
@@ -171,8 +201,8 @@ const avgOrigLen = Math.round(summaryResults.reduce((s, r) => s + r.originalLeng
 console.log(`  Narratives summarised: ${summaryResults.length} | Avg compression: ${avgCompression}% | Avg source length: ${avgOrigLen} chars`);
 console.log("  Note: ROUGE/BERTScore require Python. Plug in evaluate_rouge.py for full Annexure I scores.");
 
-// ─── 5. Privacy metrics ───────────────────────────────────────────────────────
-console.log("\n[5/5] Computing privacy metrics on ICSR analytics copy...");
+// ─── 6. Privacy metrics ───────────────────────────────────────────────────────
+console.log("\n[6/6] Computing privacy metrics on ICSR analytics copy...");
 
 // Build generalised analytics copy from all ICSR rows.
 // QI strategy: demographic-only (ageBand + gender + region) to reflect the pharmacovigilance
@@ -211,6 +241,7 @@ console.log(`\n  Recommendation: use Strategy A QIs in production analytics copy
 const report = {
   generatedAt: new Date().toISOString(),
   dataset: { icsrRows: icsr.length, dupePairs: dupePairs.length },
+  ocr: ocrCerResult,
   severity: { classes: CLASSES, support: severityLabelled.length, ...severityMetrics },
   completenessRouting: { support: routingLabelled.length, ...routingMetrics },
   duplicateDetection: { support: dupeLabelled.length, ...dupeMetrics },

@@ -2,6 +2,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import fs from "fs/promises";
+import { existsSync } from "fs";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -13,9 +14,11 @@ import GuidelineProfile from "./models/GuidelineProfile.js";
 import { applyCaseLinkage, classifyCaseRelation } from "./ai/caseLinkage.js";
 import { buildMlAnalytics } from "./ai/mlAnalytics.js";
 import { computePrivacyMetrics } from "./ai/privacyMetrics.js";
-import { summarise } from "./ai/summariser.js";
+import { summarise, buildChecklistSummary, buildMeetingSummary } from "./ai/summariser.js";
 import { compareDocuments } from "./ai/documentComparison.js";
 import { processInspectionDocument, INSPECTION_TEMPLATE } from "./ai/inspectionProcessor.js";
+import { runOcr, findPiiBoxes, computeCer } from "./ai/tesseractService.js";
+import { evaluateBatch } from "./ai/rougeEvaluator.js";
 import { buildAnonymisationSamples, presentReport, processUploadedReport } from "./reportProcessor.js";
 
 dotenv.config();
@@ -24,7 +27,8 @@ const app = express();
 const PORT = Number(process.env.PORT || 5001);
 const JWT_SECRET = process.env.JWT_SECRET || "adra-development-secret-change-me";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "8h";
-const FIXTURE_DIR = "/Users/adityapathania/Codes/curin/cdsco/data-csco-ocr";
+// FIXTURE_DIR: set via env var in production; defaults to local dev path
+const FIXTURE_DIR = process.env.FIXTURE_DIR || "/Users/adityapathania/Codes/curin/cdsco/data-csco-ocr";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, "..");
@@ -33,16 +37,143 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024, files: 20 }
 });
 
-app.use(cors({ origin: true, credentials: true }));
+// CORS — allow specific origins. Add FRONTEND_URL env var on Render to allow Vercel frontend.
+const ALLOWED_ORIGINS = [
+  "http://127.0.0.1:5001",
+  "http://127.0.0.1:5173",
+  "http://localhost:5001",
+  "http://localhost:5173",
+  process.env.FRONTEND_URL,        // e.g. https://adra.vercel.app
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (curl, Postman, server-to-server)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.some((o) => origin === o || origin.startsWith(o))) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true
+}));
 app.use(express.json({ limit: "2mb" }));
 validateRuntimeConfig();
 
-app.get("/api/health", (_req, res) => {
-  res.json({
-    ok: true,
-    service: "ADRA prototype API",
-    auth: "mongodb"
+// ── Latency tracking middleware ───────────────────────────────────────────────
+const latencyStore = new Map();
+app.use((req, _res, next) => {
+  const start = Date.now();
+  _res.on("finish", () => {
+    const ms = Date.now() - start;
+    const route = req.path;
+    const bucket = latencyStore.get(route) || [];
+    bucket.push(ms);
+    if (bucket.length > 100) bucket.shift();
+    latencyStore.set(route, bucket);
   });
+  next();
+});
+
+app.get("/api/health", (_req, res) => {
+  res.json({ ok: true, service: "ADRA prototype API", auth: "mongodb" });
+});
+
+// Latency stats per route — p50/p95/p99/avg over last 100 requests
+app.get("/api/health/latency", (_req, res) => {
+  const routes = {};
+  latencyStore.forEach((times, route) => {
+    if (!times.length) return;
+    const s = [...times].sort((a, b) => a - b);
+    const pct = (p) => s[Math.max(0, Math.floor(s.length * p) - 1)] || s[0];
+    routes[route] = {
+      count: times.length,
+      avg: Math.round(times.reduce((a, v) => a + v, 0) / times.length),
+      p50: pct(0.5), p95: pct(0.95), p99: pct(0.99), unit: "ms"
+    };
+  });
+  return res.json({ routes, trackedRoutes: Object.keys(routes).length });
+});
+
+// ROUGE evaluation on stored report summaries vs lead-3 reference
+app.get("/api/evaluate/rouge", async (req, res) => {
+  try {
+    const user = publicUser(await getAuthenticatedUser(req));
+    const filter = user.role === "super_admin" ? {} : { createdByUserId: user.id };
+    const reports = await Report.find(filter).limit(100);
+
+    const pairs = reports
+      .filter((r) => r.extractedFields?.clinical?.narrative?.length > 80)
+      .slice(0, 50)
+      .map((r) => {
+        const narrative = r.extractedFields.clinical.narrative;
+        const hypothesis = r.unknownFields?.saeSummary?.extractiveSummary || "";
+        const sents = narrative.split(/(?<=[.!?])\s+/).filter((s) => s.length > 20);
+        const reference = sents.slice(0, 3).join(" ");
+        return { hypothesis, reference, reportId: r.reportNumber };
+      })
+      .filter((p) => p.hypothesis.length > 10 && p.reference.length > 10);
+
+    if (!pairs.length) {
+      return res.json({ samples: 0, note: "No reports with narratives and summaries found. Process ADR reports first." });
+    }
+
+    const result = evaluateBatch(pairs);
+    return res.json(result);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message || "ROUGE evaluation failed." });
+  }
+});
+
+// RAG query — keyword search over ragChunks stored on MongoDB reports
+app.post("/api/rag/query", async (req, res) => {
+  try {
+    const user = publicUser(await getAuthenticatedUser(req));
+    const { query = "", filters = {}, limit = 8 } = req.body || {};
+    if (!query.trim()) return res.status(400).json({ message: "query is required." });
+
+    const baseFilter = user.role === "super_admin" ? {} : { createdByUserId: user.id };
+    if (filters.medicine) baseFilter.medicineName = new RegExp(filters.medicine.slice(0, 60), "i");
+    if (filters.reaction) baseFilter.adverseReaction = new RegExp(filters.reaction.slice(0, 60), "i");
+
+    const reports = await Report.find(baseFilter).limit(300);
+
+    const qTokens = new Set(
+      query.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2)
+    );
+
+    const results = [];
+    reports.forEach((report) => {
+      const chunks = report.ragChunks || [];
+      chunks.forEach((chunk, idx) => {
+        const text = typeof chunk === "string" ? chunk : chunk.text || "";
+        if (!text) return;
+        const chunkTokens = new Set(text.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length > 2));
+        const matched = [...qTokens].filter((t) => chunkTokens.has(t));
+        const score = matched.length / Math.max(qTokens.size, 1);
+        if (score > 0.15) {
+          results.push({
+            reportId: report.reportNumber,
+            medicine: report.medicineName || "Unknown",
+            reaction: report.adverseReaction || "Unknown",
+            severityClass: report.severityClass || "others",
+            chunkIndex: idx,
+            text: text.slice(0, 300),
+            score: Number(score.toFixed(3)),
+            matchedTerms: matched.slice(0, 6)
+          });
+        }
+      });
+    });
+
+    const ranked = results.sort((a, b) => b.score - a.score).slice(0, limit);
+
+    writeAuditEvent({ actorId: user.id, actorRole: user.role, action: "rag_query", entityType: "RAG", entityId: "", metadata: { query: query.slice(0, 100), hits: ranked.length } }).catch(() => {});
+
+    return res.json({ results: ranked, query, sourcesSearched: reports.length, totalMatches: results.length });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message || "RAG query failed." });
+  }
 });
 
 app.post("/api/auth/signup", handleSignup);
@@ -146,6 +277,62 @@ app.get("/api/reports", async (req, res) => {
   }
 });
 
+// Reviewer priority queue — reports ordered by urgency with explainability
+app.get("/api/reviewer/queue", async (req, res) => {
+  try {
+    const user = publicUser(await getAuthenticatedUser(req));
+    const filter = user.role === "super_admin" ? {} : { createdByUserId: user.id };
+    const reports = await Report.find(filter).sort({ createdAt: -1 }).limit(500);
+
+    const SEVERITY_WEIGHT = { death: 1.0, disability: 0.85, hospitalisation: 0.7, others: 0.3 };
+
+    const queue = reports.map((report) => {
+      const presented = presentReport(report, user);
+      const sevClass = (presented.severityClass || "others").toLowerCase();
+      const sevWeight = SEVERITY_WEIGHT[sevClass] || 0.3;
+      const missingCount = (presented.missingFields || []).length;
+      const conf = Number(presented.confidence || 0);
+      const isDuplicate = ["duplicate", "followup"].includes(presented.relation || "");
+
+      // Priority score: severity (60%) + missing fields (25%) + low-confidence (15%)
+      const priorityScore = Number((
+        sevWeight * 0.60 +
+        Math.min(missingCount / 5, 1) * 0.25 +
+        (1 - conf) * 0.15
+      ).toFixed(3));
+
+      // Build explainability reasons
+      const reasons = [];
+      if (sevClass === "death") reasons.push("Fatal/life-threatening — immediate review");
+      else if (sevClass === "disability") reasons.push("Disability/incapacity case");
+      else if (sevClass === "hospitalisation") reasons.push("Hospitalisation required");
+      if (missingCount > 0) reasons.push(`${missingCount} mandatory field(s) missing`);
+      if (conf < 0.65) reasons.push(`Low extraction confidence (${Math.round(conf * 100)}%)`);
+      if (isDuplicate) reasons.push("Possible duplicate or follow-up");
+      if (presented.status === "needs_ocr") reasons.push("Needs OCR — manual entry required");
+      if (reasons.length === 0) reasons.push("Routine review");
+
+      return {
+        ...presented,
+        priorityScore,
+        priorityTier: priorityScore >= 0.75 ? "urgent" : priorityScore >= 0.5 ? "high" : priorityScore >= 0.3 ? "normal" : "low",
+        reasons
+      };
+    }).sort((a, b) => b.priorityScore - a.priorityScore);
+
+    const stats = {
+      urgent: queue.filter((r) => r.priorityTier === "urgent").length,
+      high: queue.filter((r) => r.priorityTier === "high").length,
+      normal: queue.filter((r) => r.priorityTier === "normal").length,
+      low: queue.filter((r) => r.priorityTier === "low").length
+    };
+
+    return res.json({ queue, stats, total: queue.length });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message || "Unable to build reviewer queue." });
+  }
+});
+
 app.get("/api/ml/analytics", async (req, res) => {
   try {
     const user = publicUser(await getAuthenticatedUser(req));
@@ -184,18 +371,69 @@ app.get("/api/anonymisation/samples", async (req, res) => {
   }
 });
 
-// SAE / checklist / meeting summarisation
-app.post("/api/summarise", async (req, res) => {
+// SAE / checklist / meeting summarisation — accepts JSON body or file upload
+app.post("/api/summarise", upload.single("document"), async (req, res) => {
   try {
     await getAuthenticatedUser(req);
-    const { text, sourceType = "sae", maxSentences } = req.body || {};
-    if (!text || typeof text !== "string") {
-      return res.status(400).json({ message: "text field is required." });
+
+    const sourceType = req.body?.sourceType || "sae";
+    const maxSentences = req.body?.maxSentences ? Number(req.body.maxSentences) : undefined;
+    let text = req.body?.text || "";
+
+    // File upload path — extract text using the same OCR/parse pipeline as report intake
+    if (req.file) {
+      const { parseSourceDocument, buildSourceMetadata } = await import("./ai/ocrService.js");
+      const meta = buildSourceMetadata(req.file);
+      const parsed = await parseSourceDocument(req.file, meta);
+      text = parsed.text || "";
+      if (!text) return res.status(422).json({ message: "Could not extract text from uploaded file." });
     }
-    const result = summarise(text, sourceType, { maxSentences });
+
+    if (!text || typeof text !== "string" || !text.trim()) {
+      return res.status(400).json({ message: "text or document file is required." });
+    }
+
+    // Route to the correct structured builder per source type
+    let result;
+    if (sourceType === "checklist") {
+      result = buildChecklistSummary(text);
+    } else if (sourceType === "meeting") {
+      result = buildMeetingSummary(text);
+    } else {
+      // SAE: standard extractive summary
+      result = summarise(text, sourceType, { maxSentences });
+    }
+
     return res.json(result);
   } catch (error) {
     return res.status(error.statusCode || 500).json({ message: error.message || "Summarisation failed." });
+  }
+});
+
+// OCR endpoint — image upload → Tesseract text + PII bounding boxes
+app.post("/api/ocr", upload.single("image"), async (req, res) => {
+  try {
+    await getAuthenticatedUser(req);
+    if (!req.file) return res.status(400).json({ message: "Image file required." });
+
+    const ocr = await runOcr(req.file.buffer);
+    const piiBoxes = findPiiBoxes(ocr.words);
+
+    // Optional CER: if caller provides reference text, compute CER
+    const reference = req.body?.reference || "";
+    const cer = reference ? computeCer(ocr.text, reference) : null;
+
+    return res.json({
+      text: ocr.text,
+      averageConfidence: ocr.averageConfidence,
+      wordCount: ocr.wordCount,
+      ocrEngine: ocr.ocrEngine,
+      piiBoxes,
+      cer,
+      note: "Text extracted via Tesseract OCR. PII bounding boxes indicate redaction regions."
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message || "OCR failed." });
   }
 });
 
@@ -233,13 +471,92 @@ app.get("/api/inspection/template", async (req, res) => {
   }
 });
 
-// Document version comparison
-app.post("/api/compare", async (req, res) => {
+// Completeness assessment — accepts file upload or raw text
+app.post("/api/completeness", upload.single("document"), async (req, res) => {
   try {
     await getAuthenticatedUser(req);
-    const { textA, textB } = req.body || {};
+    let text = req.body?.text || "";
+
+    if (req.file) {
+      const { parseSourceDocument, buildSourceMetadata } = await import("./ai/ocrService.js");
+      const meta = buildSourceMetadata(req.file);
+      const parsed = await parseSourceDocument(req.file, meta);
+      text = parsed.text || "";
+    }
+
+    if (!text.trim()) return res.status(400).json({ message: "No text content found." });
+
+    const { extractAdrFields } = await import("./ai/nlpExtractor.js");
+    const { buildConfidence, buildScoreSnapshot } = await import("./ai/scoringModel.js");
+    const { detectPrivacyFindings } = await import("./ai/privacyModel.js");
+
+    const parsed = { text, rows: [], needsOcr: false, parser: "api-text", parserConfidence: 0.85 };
+    const fields = extractAdrFields(parsed);
+    const privacy = detectPrivacyFindings(fields, text);
+    const confidence = buildConfidence(parsed, fields);
+    const score = buildScoreSnapshot(fields, confidence, "guideline-v1");
+
+    // Build detailed field-level completeness report
+    const fieldReport = [
+      { field: "Patient initials", value: fields.patient.initials || "", mandatory: true, present: Boolean(fields.patient.initials), section: "Patient" },
+      { field: "Patient age", value: fields.patient.age || "", mandatory: true, present: Boolean(fields.patient.age), section: "Patient" },
+      { field: "Patient gender", value: fields.patient.gender || "", mandatory: false, present: Boolean(fields.patient.gender), section: "Patient" },
+      { field: "Patient weight (kg)", value: fields.patient.weight || "", mandatory: false, present: Boolean(fields.patient.weight), section: "Patient" },
+      { field: "Adverse reaction", value: fields.clinical.adverseReaction || "", mandatory: true, present: Boolean(fields.clinical.adverseReaction), section: "Clinical" },
+      { field: "Suspected medication", value: fields.clinical.suspectedMedication || "", mandatory: true, present: Boolean(fields.clinical.suspectedMedication), section: "Clinical" },
+      { field: "Reaction onset date", value: fields.clinical.reactionOnsetDate || "", mandatory: false, present: Boolean(fields.clinical.reactionOnsetDate), section: "Clinical" },
+      { field: "Dose", value: fields.clinical.dose || "", mandatory: false, present: Boolean(fields.clinical.dose), section: "Clinical" },
+      { field: "Route", value: fields.clinical.route || "", mandatory: false, present: Boolean(fields.clinical.route), section: "Clinical" },
+      { field: "Seriousness", value: fields.clinical.seriousness || "", mandatory: false, present: Boolean(fields.clinical.seriousness), section: "Clinical" },
+      { field: "Outcome", value: fields.clinical.outcome || "", mandatory: false, present: Boolean(fields.clinical.outcome), section: "Clinical" },
+      { field: "Reporter name", value: fields.reporter.name || "", mandatory: true, present: Boolean(fields.reporter.name || fields.reporter.email || fields.reporter.phone), section: "Reporter" },
+      { field: "Reporter email", value: fields.reporter.email || "", mandatory: false, present: Boolean(fields.reporter.email), section: "Reporter" },
+      { field: "Reporter phone", value: fields.reporter.phone || "", mandatory: false, present: Boolean(fields.reporter.phone), section: "Reporter" }
+    ];
+
+    const mandatoryPresent = fieldReport.filter((f) => f.mandatory && f.present).length;
+    const mandatoryTotal = fieldReport.filter((f) => f.mandatory).length;
+    const optionalPresent = fieldReport.filter((f) => !f.mandatory && f.present).length;
+    const optionalTotal = fieldReport.filter((f) => !f.mandatory).length;
+
+    return res.json({
+      score: score.score,
+      route: score.route,
+      missingFields: score.missingFields,
+      confidence: confidence.overall,
+      fieldReport,
+      stats: { mandatoryPresent, mandatoryTotal, optionalPresent, optionalTotal },
+      privacyFindings: privacy.length,
+      guidelineVersion: "guideline-v1",
+      note: "Completeness assessed against CDSCO ADR Form 1.4 mandatory fields."
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message || "Completeness assessment failed." });
+  }
+});
+
+// Document version comparison — JSON body or two file uploads
+app.post("/api/compare", upload.fields([{ name: "docA", maxCount: 1 }, { name: "docB", maxCount: 1 }]), async (req, res) => {
+  try {
+    await getAuthenticatedUser(req);
+    let textA = req.body?.textA || "";
+    let textB = req.body?.textB || "";
+
+    const files = req.files || {};
+    if (files.docA?.[0] || files.docB?.[0]) {
+      const { parseSourceDocument, buildSourceMetadata } = await import("./ai/ocrService.js");
+      if (files.docA?.[0]) {
+        const p = await parseSourceDocument(files.docA[0], buildSourceMetadata(files.docA[0]));
+        textA = p.text || "";
+      }
+      if (files.docB?.[0]) {
+        const p = await parseSourceDocument(files.docB[0], buildSourceMetadata(files.docB[0]));
+        textB = p.text || "";
+      }
+    }
+
     if (!textA || !textB) {
-      return res.status(400).json({ message: "textA and textB are required." });
+      return res.status(400).json({ message: "Two document texts or files are required." });
     }
     const result = compareDocuments(textA, textB);
     return res.json(result);
@@ -300,16 +617,22 @@ app.use("/api", (_req, res) => {
   res.status(404).json({ message: "API route not found." });
 });
 
+// Serve built frontend only when the dist folder exists (local full-stack mode).
+// On Render (API-only deployment), client/dist won't be present — skip silently.
 const clientDist = path.join(rootDir, "client", "dist");
-app.use(express.static(clientDist));
-app.get(/.*/, (_req, res) => {
-  res.sendFile(path.join(clientDist, "index.html"));
-});
+if (existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get(/.*/, (_req, res) => {
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
 
 await ensureMongoConnection();
 
-app.listen(PORT, "127.0.0.1", () => {
-  console.log(`ADRA prototype API running at http://127.0.0.1:${PORT}`);
+// Bind to 0.0.0.0 so Render (and other cloud hosts) can route traffic to the process.
+// "127.0.0.1" only accepts loopback connections and will be unreachable on Render.
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`ADRA API running on port ${PORT} (host 0.0.0.0)`);
 });
 
 function getBearerToken(req) {

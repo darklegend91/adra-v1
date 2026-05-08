@@ -73,6 +73,96 @@ export function summarise(text, sourceType = "sae", options = {}) {
   };
 }
 
+// ── SUGAM checklist structured summary ───────────────────────────────────────
+// Parses numbered / bulleted checklist text into structured item rows.
+export function buildChecklistSummary(text) {
+  const lines = text.split(/\n+/).map((l) => l.trim()).filter((l) => l.length > 5);
+
+  const items = [];
+  for (const line of lines) {
+    // Match: "1. Item", "- Item", "• Item", "[ ] Item", "[x] Item"
+    const checked = /^\[x\]/i.test(line);
+    const unchecked = /^\[\s\]/.test(line);
+    const stripped = line
+      .replace(/^(\d+[\.\):]|\-|\*|•|\[x?\])\s*/i, "")
+      .trim();
+    if (!stripped) continue;
+
+    const status = checked ? "provided" : unchecked ? "missing" : inferStatus(stripped);
+    items.push({
+      item: stripped,
+      status,
+      evidence: status === "provided" ? "Mentioned in document" : "",
+      action: status === "missing" ? "Request from applicant" : status === "incomplete" ? "Review and complete" : "No action"
+    });
+  }
+
+  const summary = items.slice(0, 3).map((i) => i.item).join(". ");
+  const missing = items.filter((i) => i.status === "missing").length;
+  const provided = items.filter((i) => i.status === "provided").length;
+
+  return {
+    sourceType: "checklist",
+    structuredItems: items,
+    summary: summary || text.slice(0, 200),
+    totalItems: items.length,
+    provided,
+    missing,
+    incomplete: items.filter((i) => i.status === "incomplete").length,
+    schema: SUMMARY_SCHEMAS.checklist,
+    method: "checklist-parser",
+    note: "Items parsed from checklist text. Each row shows field status and required action."
+  };
+}
+
+function inferStatus(text) {
+  const lower = text.toLowerCase();
+  if (/\b(not\s+provided|missing|absent|n\/a|not\s+applicable|not\s+attached|not\s+submitted)\b/.test(lower)) return "missing";
+  if (/\b(incomplete|partial|pending|to\s+be\s+provided|tbd)\b/.test(lower)) return "incomplete";
+  if (/\b(attached|enclosed|submitted|provided|included|available|yes|complete)\b/.test(lower)) return "provided";
+  return "review";
+}
+
+// ── Meeting transcript structured summary ────────────────────────────────────
+export function buildMeetingSummary(text) {
+  const lines = text.split(/\n+/).map((l) => l.trim()).filter((l) => l.length > 5);
+
+  const decisions = [];
+  const actions = [];
+  const pending = [];
+  const nextSteps = [];
+
+  const DECISION_RE = /^(decision|decided|resolved|agreed|approved|concluded)\s*[:.-]/i;
+  const ACTION_RE = /^(action|ai|todo|to\s+do|assigned|owner|responsible)\s*[:.\-]/i;
+  const PENDING_RE = /^(pending|deferred|tabled|not\s+resolved|open|ongoing)\s*[:.-]/i;
+  const NEXT_RE = /^(next\s+steps?|follow\s+up|follow-up|next\s+meeting|deadline|due\s+by|by\s+when)\s*[:.-]/i;
+
+  for (const line of lines) {
+    if (DECISION_RE.test(line)) decisions.push(line.replace(DECISION_RE, "").trim());
+    else if (ACTION_RE.test(line)) actions.push(line.replace(ACTION_RE, "").trim());
+    else if (PENDING_RE.test(line)) pending.push(line.replace(PENDING_RE, "").trim());
+    else if (NEXT_RE.test(line)) nextSteps.push(line.replace(NEXT_RE, "").trim());
+  }
+
+  // Fallback: use extractive TextRank if no structured labels found
+  const extractive = summarise(text, "meeting");
+  const hasSections = decisions.length + actions.length + pending.length + nextSteps.length > 0;
+
+  return {
+    sourceType: "meeting",
+    decisions,
+    actionItems: actions,
+    pendingItems: pending,
+    nextSteps,
+    extractiveSummary: extractive.summary,
+    schema: SUMMARY_SCHEMAS.meeting,
+    method: hasSections ? "structured-label-parse" : "extractive-fallback",
+    note: hasSections
+      ? "Structured sections extracted from labelled lines (Decision/Action/Pending/Next steps)."
+      : "No labelled sections found. TextRank extractive summary applied. Label lines with 'Decision:', 'Action:', etc. for structured output."
+  };
+}
+
 export function buildSaeSummaryFromFields(extractedFields, narrative) {
   const patient = extractedFields?.patient || {};
   const clinical = extractedFields?.clinical || {};

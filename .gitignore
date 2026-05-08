@@ -10,3 +10,6 @@ plan.md
 docs/
 reports/
 output/
+# Tesseract language file — tesseract.js downloads this automatically at runtime
+eng.traineddata
+# models/ is intentionally NOT ignored — severity_lr.json + severity_nb.json must be deployed

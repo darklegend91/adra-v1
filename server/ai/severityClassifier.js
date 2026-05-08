@@ -10,6 +10,7 @@
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { lrPredict, isLrModelLoaded, getLrModelMeta } from "./lrClassifier.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const NB_MODEL_PATH = resolve(__dirname, "../../models/severity_nb.json");
@@ -19,7 +20,19 @@ let NB_MODEL = null;
 try {
   NB_MODEL = JSON.parse(readFileSync(NB_MODEL_PATH, "utf8"));
 } catch {
-  // Model not yet trained; rule-based classifier will be used
+  // NB model not present; LR model (lrClassifier.js) is the primary ML path
+}
+
+// Log which ML models are active at startup
+const lrLoaded = isLrModelLoaded();
+const lrMeta = getLrModelMeta();
+if (lrLoaded) {
+  console.log(`[SeverityClassifier] LR model loaded — Macro-F1 ${lrMeta.macroF1}, MCC ${lrMeta.mcc}, ${lrMeta.features} features`);
+} else {
+  console.warn("[SeverityClassifier] LR model not found. Run: python scripts/train_severity_classifier.py");
+}
+if (NB_MODEL) {
+  console.log(`[SeverityClassifier] NB model loaded (fallback) — classes: ${NB_MODEL.classes?.join(", ")}`);
 }
 
 const DEATH_RE = /\b(death|died|fatal(ity)?|deceased|mortali(ty|ties)|dead)\b/i;
@@ -67,8 +80,18 @@ export function classifySeverity(report) {
   const mappedOutcome = OUTCOME_MAP[outcome];
   if (mappedOutcome) return { class: mappedOutcome, basis: "outcome-label-map", confidence: 0.90 };
 
-  // Naive Bayes model (if trained) — used when structured labels are absent/ambiguous
+  // Tier 3a — Logistic Regression ML model (primary ML path, Macro-F1 0.9623)
+  // Trained on MedDRA PT/SOC/LLT + outcome + narrative + drug + causality.
+  // Fires when structured label fields are absent or map to "others".
   const text = [seriousness, outcome, narrative, adverseReaction].join(" ");
+  if (isLrModelLoaded()) {
+    const lrResult = lrPredict(text);
+    if (lrResult && lrResult.confidence >= 0.55) {
+      return { class: lrResult.class, basis: "logistic-regression-ml", confidence: lrResult.confidence, probs: lrResult.probs };
+    }
+  }
+
+  // Tier 3b — Naive Bayes model (secondary ML fallback, if trained)
   if (NB_MODEL) {
     const nbResult = nbPredict(text, NB_MODEL);
     if (nbResult.confidence >= 0.60) {
@@ -76,7 +99,7 @@ export function classifySeverity(report) {
     }
   }
 
-  // Rule-based text patterns (fallback)
+  // Tier 4 — Rule-based text patterns (last resort)
   if (DEATH_RE.test(text)) return { class: "death", basis: "text-pattern", confidence: 0.82 };
   if (DISABILITY_RE.test(text)) return { class: "disability", basis: "text-pattern", confidence: 0.78 };
   if (HOSPITALISATION_RE.test(text)) return { class: "hospitalisation", basis: "text-pattern", confidence: 0.80 };

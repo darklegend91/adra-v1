@@ -53,7 +53,27 @@ export const api = {
   listGuidelines: () => request("/api/guidelines"),
   saveGuideline: (profile) => request("/api/guidelines", { method: "POST", body: profile }),
   summarise: (text, sourceType = "sae", maxSentences) => request("/api/summarise", { method: "POST", body: { text, sourceType, maxSentences } }),
+  summariseFile: (file, sourceType = "sae") => {
+    const formData = new FormData();
+    formData.append("document", file);
+    formData.append("sourceType", sourceType);
+    return request("/api/summarise", { method: "POST", headers: {}, rawBody: formData });
+  },
   compareDocuments: (textA, textB) => request("/api/compare", { method: "POST", body: { textA, textB } }),
+  compareFiles: (fileA, fileB) => {
+    const fd = new FormData();
+    fd.append("docA", fileA);
+    fd.append("docB", fileB);
+    return request("/api/compare", { method: "POST", headers: {}, rawBody: fd });
+  },
+  assessCompleteness: (textOrFile) => {
+    if (typeof textOrFile === "string") {
+      return request("/api/completeness", { method: "POST", body: { text: textOrFile } });
+    }
+    const fd = new FormData();
+    fd.append("document", textOrFile);
+    return request("/api/completeness", { method: "POST", headers: {}, rawBody: fd });
+  },
   uploadReports: (files) => {
     const formData = new FormData();
     Array.from(files).forEach((file) => formData.append("reports", file));
@@ -63,5 +83,9 @@ export const api = {
       rawBody: formData
     });
   },
+  reviewerQueue: () => request("/api/reviewer/queue"),
+  rougeEval: () => request("/api/evaluate/rouge"),
+  latencyStats: () => request("/api/health/latency"),
+  ragQuery: (query, filters = {}, limit = 8) => request("/api/rag/query", { method: "POST", body: { query, filters, limit } }),
   health: () => request("/api/health")
 };

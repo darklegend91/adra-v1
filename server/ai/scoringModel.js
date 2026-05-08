@@ -27,7 +27,10 @@ export function buildConfidence(parsed, fields, bioGptAgreement = null) {
     fields.reporter.name || fields.reporter.email || fields.reporter.phone
   ];
   const coverage = fieldValues.filter(Boolean).length / fieldValues.length;
-  const parserConfidence = parsed.needsOcr ? 0.25 : parsed.parser === "xlsx" ? 0.78 : 0.72;
+  // Use real OCR confidence when Tesseract ran; otherwise use parser-type defaults
+  const parserConfidence = parsed.parserConfidence !== undefined
+    ? parsed.parserConfidence
+    : parsed.needsOcr ? 0.25 : parsed.parser === "xlsx" ? 0.78 : 0.72;
   const sourceTrace = fields.sourceTrace.filter((entry) => entry.value).length / Math.max(fields.sourceTrace.length, 1);
   const bioGptScore = Number(bioGptAgreement?.agreement || 0);
   const overall = Number(((coverage * 0.45) + (parserConfidence * 0.35) + (sourceTrace * 0.2)).toFixed(2));
