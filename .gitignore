@@ -7,7 +7,6 @@ npm-debug.log*
 data/
 .env.example
 plan.md
-docs/
 reports/
 output/
 # Tesseract language file — tesseract.js downloads this automatically at runtime

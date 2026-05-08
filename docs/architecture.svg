@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 900" font-family="'Segoe UI', Arial, sans-serif">
+
+  <!-- Background -->
+  <rect width="1100" height="900" fill="#f8f9fb" rx="12"/>
+
+  <!-- Title -->
+  <text x="550" y="38" text-anchor="middle" font-size="18" font-weight="700" fill="#1a2233">ADRA — Solution Architecture</text>
+  <text x="550" y="56" text-anchor="middle" font-size="11" fill="#6b7a99">CDSCO-IndiaAI Health Innovation Hackathon · Stage 1 · v0.1.0</text>
+
+  <!-- ═══════════════════════════════ LAYER LABELS ════════════════════════════ -->
+  <text x="18" y="108" font-size="9" font-weight="700" fill="#8892a8" letter-spacing="1.2">FRONTEND</text>
+  <text x="18" y="212" font-size="9" font-weight="700" fill="#8892a8" letter-spacing="1.2">SECURITY</text>
+  <text x="18" y="330" font-size="9" font-weight="700" fill="#8892a8" letter-spacing="1.2">INTAKE</text>
+  <text x="18" y="468" font-size="9" font-weight="700" fill="#8892a8" letter-spacing="1.2">AI / ML</text>
+  <text x="18" y="668" font-size="9" font-weight="700" fill="#8892a8" letter-spacing="1.2">STORAGE</text>
+  <text x="18" y="808" font-size="9" font-weight="700" fill="#8892a8" letter-spacing="1.2">PRODUCTION</text>
+
+  <!-- ═══════════════════════════════ FRONTEND ════════════════════════════════ -->
+  <rect x="90" y="70" width="920" height="60" rx="8" fill="#e8f0fe" stroke="#4a80f0" stroke-width="1.5"/>
+  <text x="550" y="94" text-anchor="middle" font-size="13" font-weight="700" fill="#1a2233">React 19 + Vite — Browser Client</text>
+  <text x="550" y="112" text-anchor="middle" font-size="10" fill="#4a5568">19 dashboard pages · JWT in localStorage · Bearer token on every API call</text>
+  <text x="200" y="112" text-anchor="middle" font-size="9.5" fill="#4a80f0">Overview · Intake · Records</text>
+  <text x="550" y="126" text-anchor="middle" font-size="9.5" fill="#4a80f0">Medicine · Pivot · Cohorts · Confidence · AI/ML · Anonymisation · RAG · Guidelines</text>
+  <text x="900" y="112" text-anchor="middle" font-size="9.5" fill="#4a80f0">Queue · Compare · Audit</text>
+
+  <!-- Arrow: Frontend → Security -->
+  <line x1="550" y1="130" x2="550" y2="152" stroke="#4a80f0" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <text x="570" y="144" font-size="9" fill="#4a80f0">HTTPS / Bearer JWT</text>
+
+  <!-- ═══════════════════════════════ SECURITY LAYER ══════════════════════════ -->
+  <rect x="90" y="155" width="920" height="55" rx="8" fill="#fff3e0" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="210" y="177" text-anchor="middle" font-size="11" font-weight="700" fill="#92400e">Auth Middleware</text>
+  <text x="210" y="194" text-anchor="middle" font-size="9.5" fill="#78350f">verifyAuthToken() · role check · center scope</text>
+  <rect x="340" y="163" width="160" height="40" rx="5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="420" y="181" text-anchor="middle" font-size="9.5" font-weight="700" fill="#92400e">bcryptjs · JWT (HS-256)</text>
+  <text x="420" y="196" text-anchor="middle" font-size="9" fill="#78350f">8h expiry · ≥32-char secret</text>
+  <rect x="520" y="163" width="180" height="40" rx="5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="610" y="181" text-anchor="middle" font-size="9.5" font-weight="700" fill="#92400e">Role-Based Access</text>
+  <text x="610" y="196" text-anchor="middle" font-size="9" fill="#78350f">super_admin · pvpi_member</text>
+  <rect x="720" y="163" width="270" height="40" rx="5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="855" y="181" text-anchor="middle" font-size="9.5" font-weight="700" fill="#92400e">Input Validation</text>
+  <text x="855" y="196" text-anchor="middle" font-size="9" fill="#78350f">25 MB file limit · 2 MB JSON body · extension whitelist</text>
+
+  <!-- Arrow -->
+  <line x1="550" y1="210" x2="550" y2="232" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+
+  <!-- ═══════════════════════════════ INTAKE PIPELINE ════════════════════════ -->
+  <rect x="90" y="235" width="920" height="80" rx="8" fill="#e6f4ea" stroke="#34a853" stroke-width="1.5"/>
+  <text x="180" y="256" text-anchor="middle" font-size="10" font-weight="700" fill="#1e4d2b">Multer Memory Upload</text>
+  <text x="180" y="270" text-anchor="middle" font-size="9" fill="#2d6a4f">no disk write · 20 files max</text>
+  <text x="180" y="283" text-anchor="middle" font-size="8.5" fill="#2d6a4f">POST /api/intake/reports</text>
+  <line x1="250" y1="275" x2="290" y2="275" stroke="#34a853" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+  <rect x="292" y="248" width="160" height="50" rx="5" fill="#d7f0db" stroke="#34a853" stroke-width="1"/>
+  <text x="372" y="268" text-anchor="middle" font-size="10" font-weight="700" fill="#1e4d2b">ocrService.js</text>
+  <text x="372" y="282" text-anchor="middle" font-size="8.5" fill="#2d6a4f">PDF→pdf-parse</text>
+  <text x="372" y="294" text-anchor="middle" font-size="8.5" fill="#2d6a4f">XLSX/CSV/JSON/XML/TXT</text>
+  <text x="372" y="306" text-anchor="middle" font-size="8.5" fill="#e05c00">Image→needs_ocr</text>
+  <line x1="452" y1="275" x2="490" y2="275" stroke="#34a853" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+  <rect x="492" y="248" width="160" height="50" rx="5" fill="#d7f0db" stroke="#34a853" stroke-width="1"/>
+  <text x="572" y="268" text-anchor="middle" font-size="10" font-weight="700" fill="#1e4d2b">nlpExtractor.js</text>
+  <text x="572" y="282" text-anchor="middle" font-size="8.5" fill="#2d6a4f">patient · reporter · pvpi</text>
+  <text x="572" y="294" text-anchor="middle" font-size="8.5" fill="#2d6a4f">clinical · sourceTrace</text>
+  <text x="572" y="306" text-anchor="middle" font-size="8.5" fill="#2d6a4f">verbatim source spans</text>
+  <line x1="652" y1="275" x2="690" y2="275" stroke="#34a853" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+  <rect x="692" y="248" width="145" height="50" rx="5" fill="#d7f0db" stroke="#34a853" stroke-width="1"/>
+  <text x="764" y="268" text-anchor="middle" font-size="10" font-weight="700" fill="#1e4d2b">privacyModel.js</text>
+  <text x="764" y="282" text-anchor="middle" font-size="8.5" fill="#2d6a4f">PII/PHI detection</text>
+  <text x="764" y="294" text-anchor="middle" font-size="8.5" fill="#2d6a4f">Aadhaar·PAN·MRN·phone</text>
+  <text x="764" y="306" text-anchor="middle" font-size="8.5" fill="#2d6a4f">DPDP·NDHM·ICMR tags</text>
+  <line x1="837" y1="275" x2="875" y2="275" stroke="#34a853" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+  <rect x="877" y="248" width="125" height="50" rx="5" fill="#d7f0db" stroke="#34a853" stroke-width="1"/>
+  <text x="939" y="268" text-anchor="middle" font-size="10" font-weight="700" fill="#1e4d2b">scoringModel.js</text>
+  <text x="939" y="282" text-anchor="middle" font-size="8.5" fill="#2d6a4f">completeness score</text>
+  <text x="939" y="294" text-anchor="middle" font-size="8.5" fill="#2d6a4f">confidence (0–1)</text>
+  <text x="939" y="306" text-anchor="middle" font-size="8.5" fill="#2d6a4f">routing decision</text>
+
+  <!-- Arrow down to AI/ML -->
+  <line x1="550" y1="315" x2="550" y2="345" stroke="#34a853" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- ═══════════════════════════════ AI / ML PIPELINE ═══════════════════════ -->
+  <rect x="90" y="348" width="920" height="270" rx="8" fill="#f3eeff" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="550" y="372" text-anchor="middle" font-size="13" font-weight="700" fill="#4c1d95">AI / ML Processing Pipeline</text>
+
+  <!-- Box 1: Severity Classifier -->
+  <rect x="108" y="382" width="195" height="100" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="205" y="400" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Severity Classifier</text>
+  <text x="205" y="416" text-anchor="middle" font-size="8.5" fill="#5b21b6">severityClassifier.js</text>
+  <rect x="118" y="422" width="175" height="14" rx="3" fill="#7c3aed" opacity="0.15"/>
+  <text x="205" y="433" text-anchor="middle" font-size="8" fill="#4c1d95">death · disability · hosp · others</text>
+  <text x="205" y="449" text-anchor="middle" font-size="8.5" fill="#5b21b6">ML: Gradient Boosting</text>
+  <text x="205" y="463" text-anchor="middle" font-size="9" font-weight="700" fill="#4c1d95">Macro-F1 0.990 · MCC 0.987</text>
+  <text x="205" y="477" text-anchor="middle" font-size="8" fill="#6d28d9">Fallback: rule classifier F1 0.789</text>
+
+  <!-- Box 2: Summariser -->
+  <rect x="318" y="382" width="195" height="100" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="415" y="400" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">SAE Summariser</text>
+  <text x="415" y="416" text-anchor="middle" font-size="8.5" fill="#5b21b6">summariser.js</text>
+  <text x="415" y="432" text-anchor="middle" font-size="8.5" fill="#5b21b6">TF-IDF + keyword boost</text>
+  <text x="415" y="448" text-anchor="middle" font-size="8.5" fill="#5b21b6">sae · checklist · meeting</text>
+  <text x="415" y="464" text-anchor="middle" font-size="9" font-weight="700" fill="#4c1d95">ROUGE-1 0.940 · ROUGE-L 0.940</text>
+  <text x="415" y="478" text-anchor="middle" font-size="8" fill="#6d28d9">verbatim source spans only</text>
+
+  <!-- Box 3: Privacy Metrics -->
+  <rect x="528" y="382" width="195" height="100" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="625" y="400" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Privacy Engine</text>
+  <text x="625" y="416" text-anchor="middle" font-size="8.5" fill="#5b21b6">privacyMetrics.js</text>
+  <text x="625" y="432" text-anchor="middle" font-size="8.5" fill="#5b21b6">k-anonymity · l-diversity · t-closeness</text>
+  <text x="625" y="448" text-anchor="middle" font-size="8.5" fill="#5b21b6">demographic QI suppression</text>
+  <text x="625" y="464" text-anchor="middle" font-size="9" font-weight="700" fill="#4c1d95">k = 5 after 2.9% suppression</text>
+  <text x="625" y="478" text-anchor="middle" font-size="8" fill="#6d28d9">pseudonymised + analytics copy</text>
+
+  <!-- Box 4: Duplicate Detector -->
+  <rect x="738" y="382" width="195" height="100" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="835" y="400" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Duplicate Detector</text>
+  <text x="835" y="416" text-anchor="middle" font-size="8.5" fill="#5b21b6">caseLinkage.js</text>
+  <text x="835" y="432" text-anchor="middle" font-size="8.5" fill="#5b21b6">SHA-256 hash (exact)</text>
+  <text x="835" y="448" text-anchor="middle" font-size="8.5" fill="#5b21b6">patient token + drug + reaction</text>
+  <text x="835" y="464" text-anchor="middle" font-size="9" font-weight="700" fill="#4c1d95">F1 1.000 on 462 labelled pairs</text>
+  <text x="835" y="478" text-anchor="middle" font-size="8" fill="#6d28d9">new · duplicate · follow-up</text>
+
+  <!-- Second AI row -->
+  <rect x="108" y="494" width="195" height="80" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="205" y="512" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Document Comparator</text>
+  <text x="205" y="527" text-anchor="middle" font-size="8.5" fill="#5b21b6">documentComparison.js</text>
+  <text x="205" y="541" text-anchor="middle" font-size="8.5" fill="#5b21b6">section-aware heading split</text>
+  <text x="205" y="555" text-anchor="middle" font-size="8.5" fill="#5b21b6">Jaccard similarity · materiality</text>
+  <text x="205" y="569" text-anchor="middle" font-size="8" fill="#6d28d9">high · medium · cosmetic</text>
+
+  <rect x="318" y="494" width="195" height="80" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="415" y="512" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Inspection Processor</text>
+  <text x="415" y="527" text-anchor="middle" font-size="8.5" fill="#5b21b6">inspectionProcessor.js</text>
+  <text x="415" y="541" text-anchor="middle" font-size="8.5" fill="#5b21b6">observation extraction</text>
+  <text x="415" y="555" text-anchor="middle" font-size="8.5" fill="#5b21b6">CDSCO template mapping</text>
+  <text x="415" y="569" text-anchor="middle" font-size="8" fill="#e05c00">OCR wiring: planned</text>
+
+  <rect x="528" y="494" width="195" height="80" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="625" y="512" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Reviewer Queue</text>
+  <text x="625" y="527" text-anchor="middle" font-size="8.5" fill="#5b21b6">server/index.js — /api/reviewer/queue</text>
+  <text x="625" y="541" text-anchor="middle" font-size="8.5" fill="#5b21b6">severity 60% + missing 25%</text>
+  <text x="625" y="555" text-anchor="middle" font-size="8.5" fill="#5b21b6">+ low-confidence 15%</text>
+  <text x="625" y="569" text-anchor="middle" font-size="8" fill="#5b21b6">urgent · high · normal · low</text>
+
+  <rect x="738" y="494" width="195" height="80" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="835" y="512" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">RAG Retrieval</text>
+  <text x="835" y="527" text-anchor="middle" font-size="8.5" fill="#5b21b6">/api/rag/query</text>
+  <text x="835" y="541" text-anchor="middle" font-size="8.5" fill="#5b21b6">keyword token overlap</text>
+  <text x="835" y="555" text-anchor="middle" font-size="8.5" fill="#5b21b6">anonymised ragChunks</text>
+  <text x="835" y="569" text-anchor="middle" font-size="8" fill="#e05c00">vector store: planned v2</text>
+
+  <!-- Arrow: AI → Storage -->
+  <line x1="550" y1="618" x2="550" y2="645" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrow-purple)"/>
+
+  <!-- ═══════════════════════════════ STORAGE ════════════════════════════════ -->
+  <rect x="90" y="648" width="920" height="90" rx="8" fill="#fce4ec" stroke="#e91e63" stroke-width="1.5"/>
+  <text x="550" y="668" text-anchor="middle" font-size="12" font-weight="700" fill="#880e4f">MongoDB Atlas — Data Store</text>
+
+  <rect x="110" y="676" width="190" height="50" rx="5" fill="#fce8ef" stroke="#e91e63" stroke-width="1"/>
+  <text x="205" y="695" text-anchor="middle" font-size="10" font-weight="700" fill="#880e4f">reports</text>
+  <text x="205" y="710" text-anchor="middle" font-size="8.5" fill="#ad1457">immutable · extractedFields</text>
+  <text x="205" y="723" text-anchor="middle" font-size="8.5" fill="#ad1457">scoreSnapshots · ragChunks</text>
+
+  <rect x="318" y="676" width="190" height="50" rx="5" fill="#fce8ef" stroke="#e91e63" stroke-width="1"/>
+  <text x="413" y="695" text-anchor="middle" font-size="10" font-weight="700" fill="#880e4f">users</text>
+  <text x="413" y="710" text-anchor="middle" font-size="8.5" fill="#ad1457">bcrypt hash · role · center</text>
+  <text x="413" y="723" text-anchor="middle" font-size="8.5" fill="#ad1457">approvalStatus · pvpiOfficerNo</text>
+
+  <rect x="526" y="676" width="190" height="50" rx="5" fill="#fce8ef" stroke="#e91e63" stroke-width="1"/>
+  <text x="621" y="695" text-anchor="middle" font-size="10" font-weight="700" fill="#880e4f">auditevents</text>
+  <text x="621" y="710" text-anchor="middle" font-size="8.5" fill="#ad1457">append-only · actorId · action</text>
+  <text x="621" y="723" text-anchor="middle" font-size="8.5" fill="#ad1457">entityType · timestamp</text>
+
+  <rect x="734" y="676" width="265" height="50" rx="5" fill="#fce8ef" stroke="#e91e63" stroke-width="1"/>
+  <text x="866" y="695" text-anchor="middle" font-size="10" font-weight="700" fill="#880e4f">guidelineprofiles</text>
+  <text x="866" y="710" text-anchor="middle" font-size="8.5" fill="#ad1457">versioned scoring rules</text>
+  <text x="866" y="723" text-anchor="middle" font-size="8.5" fill="#ad1457">requiredFields · scoringWeights</text>
+
+  <!-- ═══════════════════════════════ PRODUCTION TARGET ══════════════════════ -->
+  <rect x="90" y="755" width="920" height="90" rx="8" fill="#e3f2fd" stroke="#1976d2" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="200" y="774" text-anchor="middle" font-size="10" font-weight="700" fill="#0d47a1">Production Target</text>
+  <text x="200" y="789" text-anchor="middle" font-size="8.5" fill="#1565c0">(planned — Stage 2)</text>
+
+  <rect x="108" y="778" width="145" height="58" rx="5" fill="#e8f5fd" stroke="#1976d2" stroke-width="1"/>
+  <text x="180" y="796" text-anchor="middle" font-size="9" font-weight="700" fill="#0d47a1">OCR Workers</text>
+  <text x="180" y="811" text-anchor="middle" font-size="8" fill="#1565c0">Tesseract 5</text>
+  <text x="180" y="824" text-anchor="middle" font-size="8" fill="#1565c0">PaddleOCR / TrOCR</text>
+
+  <rect x="268" y="778" width="145" height="58" rx="5" fill="#e8f5fd" stroke="#1976d2" stroke-width="1"/>
+  <text x="340" y="796" text-anchor="middle" font-size="9" font-weight="700" fill="#0d47a1">NLP Workers</text>
+  <text x="340" y="811" text-anchor="middle" font-size="8" fill="#1565c0">Presidio + scispaCy</text>
+  <text x="340" y="824" text-anchor="middle" font-size="8" fill="#1565c0">BioBERT / ClinicalBERT</text>
+
+  <rect x="428" y="778" width="145" height="58" rx="5" fill="#e8f5fd" stroke="#1976d2" stroke-width="1"/>
+  <text x="500" y="796" text-anchor="middle" font-size="9" font-weight="700" fill="#0d47a1">Audio (Whisper)</text>
+  <text x="500" y="811" text-anchor="middle" font-size="8" fill="#1565c0">faster-whisper</text>
+  <text x="500" y="824" text-anchor="middle" font-size="8" fill="#1565c0">pyannote diarisation</text>
+
+  <rect x="588" y="778" width="145" height="58" rx="5" fill="#e8f5fd" stroke="#1976d2" stroke-width="1"/>
+  <text x="660" y="796" text-anchor="middle" font-size="9" font-weight="700" fill="#0d47a1">Token Vault</text>
+  <text x="660" y="811" text-anchor="middle" font-size="8" fill="#1565c0">HashiCorp Vault</text>
+  <text x="660" y="824" text-anchor="middle" font-size="8" fill="#1565c0">KMS field-level encryption</text>
+
+  <rect x="748" y="778" width="145" height="58" rx="5" fill="#e8f5fd" stroke="#1976d2" stroke-width="1"/>
+  <text x="820" y="796" text-anchor="middle" font-size="9" font-weight="700" fill="#0d47a1">Vector Store</text>
+  <text x="820" y="811" text-anchor="middle" font-size="8" fill="#1565c0">Qdrant / pgvector</text>
+  <text x="820" y="824" text-anchor="middle" font-size="8" fill="#1565c0">anonymised RAG chunks</text>
+
+  <rect x="908" y="778" width="90" height="58" rx="5" fill="#e8f5fd" stroke="#1976d2" stroke-width="1"/>
+  <text x="953" y="796" text-anchor="middle" font-size="9" font-weight="700" fill="#0d47a1">BullMQ</text>
+  <text x="953" y="811" text-anchor="middle" font-size="8" fill="#1565c0">Redis queue</text>
+  <text x="953" y="824" text-anchor="middle" font-size="8" fill="#1565c0">async workers</text>
+
+  <!-- ═══════════════════════════════ COMPLIANCE STRIP ═══════════════════════ -->
+  <rect x="90" y="855" width="920" height="30" rx="6" fill="#f1f8e9" stroke="#689f38" stroke-width="1.2"/>
+  <text x="550" y="875" text-anchor="middle" font-size="9.5" fill="#33691e">
+    Compliance: DPDP Act 2023 · NDHM Health Data Management Policy · ICMR Ethical Guidelines · CDSCO Schedule Y · CERT-In
+  </text>
+
+  <!-- ═══════════════════════════════ ARROW MARKERS ═══════════════════════════ -->
+  <defs>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#4a80f0"/>
+    </marker>
+    <marker id="arrow-amber" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#34a853"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#7c3aed"/>
+    </marker>
+  </defs>
+
+</svg>
