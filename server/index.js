@@ -43,7 +43,8 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173",
   "http://localhost:5001",
   "http://localhost:5173",
-  process.env.FRONTEND_URL,        // e.g. https://adra.vercel.app
+  process.env.FRONTEND_URL,         // Vercel frontend URL (if separate)
+  process.env.RENDER_EXTERNAL_URL,  // Auto-injected by Render: https://adra-v1.onrender.com
 ].filter(Boolean);
 
 app.use(cors({

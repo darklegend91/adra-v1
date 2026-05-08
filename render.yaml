@@ -3,7 +3,7 @@ services:
     name: adra-api
     runtime: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm install && npm run build
     startCommand: node server/index.js
     envVars:
       - key: NODE_ENV
