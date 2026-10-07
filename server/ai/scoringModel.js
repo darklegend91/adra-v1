@@ -6,7 +6,7 @@ export function buildScoreSnapshot(fields, confidence, guidelineVersion) {
     ["Suspected medication", fields.clinical.suspectedMedication],
     ["Reporter contact", fields.reporter.name || fields.reporter.email || fields.reporter.phone]
   ];
-  const missingFields = required.filter(([, value]) => !value).map(([label]) => label);
+  const missingFields = required.filter(([, value]) => isMissingRequiredValue(value)).map(([label]) => label);
   const score = Math.max(0, Math.round(100 - missingFields.length * 14 - (confidence.overall < 0.6 ? 12 : 0)));
 
   return {
@@ -16,6 +16,11 @@ export function buildScoreSnapshot(fields, confidence, guidelineVersion) {
     route: missingFields.length ? "needs_followup" : confidence.overall < 0.65 ? "manual_review" : "ready_for_processing",
     basis: "Completeness score uses only fields present in the uploaded report."
   };
+}
+
+function isMissingRequiredValue(value) {
+  const cleaned = String(value || "").trim().toLowerCase();
+  return !cleaned || ["not extracted", "unknown", "n/a", "na", "none", "null", "-"].includes(cleaned) || /^\(?[a-z]\)?\s*[*x×.\-]*$/.test(cleaned);
 }
 
 export function buildConfidence(parsed, fields, bioGptAgreement = null) {

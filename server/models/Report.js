@@ -27,8 +27,18 @@ const reportSchema = new mongoose.Schema(
     seriousness: { type: String, default: "", index: true },
     outcome: { type: String, default: "", index: true },
     caseRelation: { type: String, enum: ["new", "duplicate", "followup"], default: "new", index: true },
+    humanReviewStatus: { type: String, enum: ["unreviewed", "needs_followup", "accepted", "not_accepted"], default: "unreviewed", index: true },
+    humanReviewNote: { type: String, default: "" },
+    humanReviewUpdatedAt: { type: Date, default: null },
+    humanReviewUpdatedByUserId: { type: String, default: "", index: true },
+    humanReviewUpdatedByRole: { type: String, default: "" },
+    humanReviewHistory: { type: [mongoose.Schema.Types.Mixed], default: [] },
     followupHistory: { type: [mongoose.Schema.Types.Mixed], default: [] },
     duplicateHistory: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    removedAt: { type: Date, default: null, index: true },
+    removedByUserId: { type: String, default: "", index: true },
+    removedByRole: { type: String, default: "" },
+    removalReason: { type: String, default: "" },
     ragChunks: { type: [mongoose.Schema.Types.Mixed], default: [] }
   },
   { timestamps: true }

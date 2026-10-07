@@ -79,9 +79,16 @@ def main():
     if not args.skip_ml:
         severity_path = run_script("train_severity_classifier.py")
         severity = load_json(severity_path)
+        if severity is None:
+            fallback = REPORTS_DIR / "severity_eval.json"
+            severity = load_json(fallback)
+            if severity:
+                print(f"  [fallback] Loaded existing {fallback.relative_to(ROOT)}")
     else:
         print("  [skip] --skip-ml flag set.")
-        severity = None
+        severity = load_json(REPORTS_DIR / "severity_eval.json")
+        if severity:
+            print("  [fallback] Loaded existing reports/severity_eval.json")
 
     # 3. Privacy metrics
     print("\n[3/5] Privacy metrics (k/l/t)")

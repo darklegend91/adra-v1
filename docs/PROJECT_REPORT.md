@@ -48,20 +48,6 @@ ADRA uses a hybrid rule-based approach implemented in `server/ai/privacyModel.js
 
 ---
 
-#### Document Comparison Algorithm (Feature 3)
-
-Implemented in `server/ai/documentComparison.js`:
-
-1. **Section-aware splitting:** Documents are split on heading patterns (`## Heading`, `SECTION N`, numbered headings). Each section is compared independently.
-2. **Sentence-level diff:** Within each section, sentences are compared pairwise by Jaccard token similarity.
-3. **Change classification:**
-   - Jaccard < 0.30 → **high materiality** (substantive new content or deletion)
-   - Jaccard 0.30–0.60 → **medium materiality** (meaningful reword)
-   - Jaccard > 0.60 → **cosmetic** (minor wording adjustment)
-4. **Output:** JSON change-list with `{ section, type, similarity, materiality, textA, textB }` for every changed sentence pair. Available at `POST /api/compare`.
-
----
-
 ### b. Anonymisation Report
 
 **Sample transformation (from processed ADR Form 35):**
@@ -262,7 +248,6 @@ Method: Decision/action keyword dictionary (`decision`, `action`, `resolved`, `a
 
 - Annotated ICSR forms in Hindi and regional languages (multilingual extraction gap)
 - Real SUGAM application bundle samples for checklist summarisation tuning
-- Handwritten inspection note images for TrOCR fine-tuning
 - Reviewer correction history for active learning
 
 ### Scaling and Security for Later Phases

@@ -1,5 +1,5 @@
 // Tesseract.js OCR service for ADRA.
-// Handles images (PNG/JPEG/TIFF/BMP) and scanned PDF buffers.
+// Handles raster image buffers (PNG/JPEG/TIFF/BMP/WebP/GIF).
 //
 // Returns:
 //   text             — full OCR transcript
@@ -25,10 +25,10 @@ export function isPdfMime(mimetype) {
 }
 
 /**
- * Check if a Buffer contains a recognised image format by inspecting magic bytes.
+ * Check if a Buffer contains a recognised raster image format by inspecting magic bytes.
  * Prevents Tesseract from receiving non-image data which causes unhandleable worker errors.
  */
-function isRecognisedImageBuffer(buffer) {
+function isRecognisedRasterImageBuffer(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 4) return false;
   const b = buffer;
   // PNG
@@ -44,13 +44,11 @@ function isRecognisedImageBuffer(buffer) {
   if (b[0] === 0x4D && b[1] === 0x4D && b[2] === 0x00 && b[3] === 0x2A) return true;
   // WebP (RIFF....WEBP)
   if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return true;
-  // PDF (also accepted by Tesseract for scanned PDFs)
-  if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return true;
   return false;
 }
 
 /**
- * Run Tesseract OCR on an image buffer or scanned PDF buffer.
+ * Run Tesseract OCR on a raster image buffer.
  * @param {Buffer} buffer
  * @param {object} [opts]
  * @param {string} [opts.lang]  Tesseract language code (default "eng")
@@ -59,9 +57,9 @@ function isRecognisedImageBuffer(buffer) {
 export async function runOcr(buffer, opts = {}) {
   const lang = opts.lang || "eng";
 
-  // Guard: only pass recognised image/PDF formats to Tesseract.
-  // Non-image buffers cause worker-level errors that escape try/catch.
-  if (!isRecognisedImageBuffer(buffer)) {
+  // Guard: only pass recognised raster images to Tesseract.
+  // PDF and other non-image buffers can cause worker-level errors that escape try/catch.
+  if (!isRecognisedRasterImageBuffer(buffer)) {
     return {
       text: "",
       words: [],
@@ -69,7 +67,7 @@ export async function runOcr(buffer, opts = {}) {
       wordCount: 0,
       ocrEngine: "tesseract.js",
       lang,
-      error: "Buffer is not a recognised image format (PNG/JPEG/TIFF/BMP/WebP/PDF)."
+      error: "Buffer is not a recognised raster image format (PNG/JPEG/TIFF/BMP/WebP/GIF)."
     };
   }
 
@@ -91,16 +89,18 @@ export async function runOcr(buffer, opts = {}) {
       }
     }));
 
+    const textWordCount = (raw.text || "").trim().split(/\s+/).filter(Boolean).length;
+    const rawConfidence = Number.isFinite(raw.confidence) ? raw.confidence / 100 : 0;
     const highConfWords = words.filter((w) => w.confidence > 0.5);
     const averageConfidence = highConfWords.length
       ? Number((highConfWords.reduce((s, w) => s + w.confidence, 0) / highConfWords.length).toFixed(3))
-      : 0.3;
+      : Number((rawConfidence || 0.3).toFixed(3));
 
     return {
       text: (raw.text || "").trim(),
       words,
       averageConfidence,
-      wordCount: words.length,
+      wordCount: words.length || textWordCount,
       ocrEngine: "tesseract.js",
       lang
     };

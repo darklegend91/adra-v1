@@ -5,15 +5,21 @@
   "type": "module",
   "description": "ADRA MERN prototype for AI-driven regulatory workflow automation and data anonymisation.",
   "scripts": {
-    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev:server\" \"npm run dev:client\"",
+    "dev": "concurrently -n server,sidecar,client -c blue,green,magenta --kill-others-on-fail false \"npm run dev:server\" \"npm run dev:sidecar\" \"npm run dev:client\"",
     "dev:server": "PORT=5001 node server/index.js",
     "dev:client": "vite --config client/vite.config.js --host 127.0.0.1",
+    "dev:sidecar": "cd python/sidecar && venv/bin/uvicorn main:app --host 127.0.0.1 --port 7070 --workers 1 --reload || echo '[sidecar] venv not ready — run: npm run setup:sidecar'",
     "build": "vite build --config client/vite.config.js",
     "start": "node server/index.js",
+    "start:sidecar": "cd python/sidecar && uvicorn main:app --host 127.0.0.1 --port 7070 --workers 1",
+    "setup:sidecar": "bash python/sidecar/start.sh",
     "evaluate": "node scripts/evaluate.js",
-    "train": "node scripts/train_nb_classifier.js"
+    "train": "node scripts/train_nb_classifier.js",
+    "test:extraction": "node scripts/test_extraction.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
+    "@napi-rs/canvas": "^0.1.80",
     "@vitejs/plugin-react": "^5.0.4",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",

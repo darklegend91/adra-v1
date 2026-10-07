@@ -28,14 +28,12 @@ ADRA is a full-stack pharmacovigilance automation platform that ingests, process
 | **Completeness Scoring** | Checks 5 mandatory CDSCO Form 1.4 fields. Routes to ready / needs_followup / manual_review. Score = 100 − missingCount×14. | Live |
 | **Duplicate / Follow-Up Detection** | SHA-256 hash + patient token + drug + reaction blocking key. F1 1.000 on 462 labelled pairs. | Live |
 | **SAE / Document Summarisation** | TextRank + MMR extractive. Three source types: SAE, SUGAM checklist, meeting. ROUGE-1 0.9401. All output verbatim source spans. | Live |
-| **Document Version Comparison** | Section-aware Jaccard diff. Materiality: high / medium / cosmetic. JSON change-list with added/removed sentences. | Live |
 | **Reviewer Priority Queue** | severity×0.6 + missing×0.25 + low-confidence×0.15. Tiers: urgent / high / normal / low. Per-record explainability. | Live |
 | **OCR Pipeline** | Tesseract.js — text + PII bounding boxes from images. CER formula implemented. | Live |
-| **Inspection Report Generation** | CDSCO 8-section template. Critical/Major/Minor deficiency classification via domain regex. | Live |
 | **RAG Knowledge Retrieval** | Keyword token-overlap over anonymised ragChunks. Filters by medicine/reaction. | Live |
 | **Guideline Versioning** | Editable scoring profiles in MongoDB. Score snapshots reference guideline version. Append-only. | Live |
 | **Audit Trail** | AuditEvent collection — login, intake, token access, guideline saves. super_admin access only. | Live |
-| **19-Page Analytics Dashboard** | Overview · Intake · Records · Medicine · Pivot · Cohorts · Confidence · AI/ML · Anonymisation · RAG · Guidelines · Queue · Compare · Relations · Inspection · Annexure I · Audit | Live |
+| **Analytics Dashboard** | Overview · Intake · Records · Medicine · Pivot · Cohorts · Confidence · AI/ML · Anonymisation · RAG · Guidelines · Queue · Relations · Annexure I · Audit | Live |
 
 ---
 
@@ -54,7 +52,6 @@ ADRA is a full-stack pharmacovigilance automation platform that ingests, process
 | **PII/PHI Detector** | Regex + keyword trigger NER | Identifies and tokenises personal and health identifiers |
 | **Privacy Engine** | Custom k/l/t (JS + Python) | Measures and enforces privacy guarantees on analytics copy |
 | **Duplicate Detector** | SHA-256 hash + blocking key similarity | Two-stage de-duplication with case linkage |
-| **Document Comparator** | Jaccard similarity + section-aware heading split | Section-level diff with materiality scoring |
 | **Confidence Scorer** | Weighted linear formula | `fieldCoverage×0.45 + parser×0.35 + sourceTrace×0.20` |
 | **Priority Queue Scorer** | Weighted multi-signal formula | `severity×0.60 + missing×0.25 + (1−confidence)×0.15` |
 
@@ -178,7 +175,6 @@ cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 | Summariser | TextRank + MMR | No-fabrication guarantee; deterministic; ROUGE 0.940 |
 | PII detector | Rule/regex | High precision on structured Indian identifiers |
 | Privacy metrics | Custom k/l/t | Full control over QI definition and health-data thresholds |
-| Document comparison | Jaccard similarity | Lightweight; section-aware; tunable materiality threshold |
 | Database | MongoDB Atlas | Schema-flexible; geographically distributed; audit collection support |
 
 ### 5.2 Three-Model Comparison (Stratified 5-Fold CV)

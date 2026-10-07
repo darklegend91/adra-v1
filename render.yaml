@@ -1,15 +1,42 @@
 services:
+  - type: pserv
+    name: adra-sidecar
+    runtime: python
+    region: singapore
+    plan: starter
+    rootDir: python/sidecar
+    buildCommand: pip install -r requirements.txt && python -m spacy download en_core_web_sm || true
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: PORT
+        value: 7070
+      - key: MODEL_CACHE_DIR
+        value: /tmp/adra-models
+      - key: WHISPER_MODEL_SIZE
+        value: tiny
+
   - type: web
     name: adra-api
     runtime: node
+    region: singapore
     plan: free
     buildCommand: npm install && npm run build
     startCommand: node server/index.js
+    healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: 22
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
+      - key: SIDECAR_URL
+        fromService:
+          type: pserv
+          name: adra-sidecar
+          property: hostport
       - key: MONGODB_URI
         sync: false       # set manually in Render dashboard
       - key: MONGODB_DB
@@ -19,4 +46,4 @@ services:
       - key: JWT_EXPIRES_IN
         value: 8h
       - key: FRONTEND_URL
-        sync: false       # set to your Vercel URL, e.g. https://adra.vercel.app
+        sync: false       # optional; set only if you host the frontend separately

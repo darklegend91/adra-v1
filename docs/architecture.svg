@@ -120,19 +120,6 @@
   <text x="835" y="478" text-anchor="middle" font-size="8" fill="#6d28d9">new · duplicate · follow-up</text>
 
   <!-- Second AI row -->
-  <rect x="108" y="494" width="195" height="80" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
-  <text x="205" y="512" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Document Comparator</text>
-  <text x="205" y="527" text-anchor="middle" font-size="8.5" fill="#5b21b6">documentComparison.js</text>
-  <text x="205" y="541" text-anchor="middle" font-size="8.5" fill="#5b21b6">section-aware heading split</text>
-  <text x="205" y="555" text-anchor="middle" font-size="8.5" fill="#5b21b6">Jaccard similarity · materiality</text>
-  <text x="205" y="569" text-anchor="middle" font-size="8" fill="#6d28d9">high · medium · cosmetic</text>
-
-  <rect x="318" y="494" width="195" height="80" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
-  <text x="415" y="512" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Inspection Processor</text>
-  <text x="415" y="527" text-anchor="middle" font-size="8.5" fill="#5b21b6">inspectionProcessor.js</text>
-  <text x="415" y="541" text-anchor="middle" font-size="8.5" fill="#5b21b6">observation extraction</text>
-  <text x="415" y="555" text-anchor="middle" font-size="8.5" fill="#5b21b6">CDSCO template mapping</text>
-  <text x="415" y="569" text-anchor="middle" font-size="8" fill="#e05c00">OCR wiring: planned</text>
 
   <rect x="528" y="494" width="195" height="80" rx="6" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.2"/>
   <text x="625" y="512" text-anchor="middle" font-size="10" font-weight="700" fill="#4c1d95">Reviewer Queue</text>

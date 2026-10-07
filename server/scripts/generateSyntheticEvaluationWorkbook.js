@@ -372,7 +372,7 @@ function buildKpis(baseRows, rng) {
   const divisions = uniq(baseRows.map((r) => clean(r.Division))).filter(Boolean);
   const out = [];
   const monthList = months.length ? months : Array.from({ length: 18 }, (_, i) => dateIso(addMonths(new Date("2025-01-01"), i)).slice(0, 7));
-  const divList = divisions.length ? divisions : ["CT", "PvPI", "SAE", "Inspections"];
+  const divList = divisions.length ? divisions : ["CT", "PvPI", "SAE", "Compliance"];
 
   for (const month of monthList) {
     for (const division of divList) {
@@ -395,7 +395,7 @@ function buildKpis(baseRows, rng) {
         SAE_Reports_Received: randInt(rng, 0, 140),
         SAE_Reports_Closed: randInt(rng, 0, 120),
         Critical_Issues_Identified: randInt(rng, 0, 25),
-        Inspections_Conducted: randInt(rng, 0, 14),
+        Compliance_Reviews_Conducted: randInt(rng, 0, 14),
         Deficiency_Letters_Issued: randInt(rng, 0, 40),
         Appeals_Filed: randInt(rng, 0, 9),
         Staff_Workload_Index: round2(randFloat(rng, 0.4, 1.3)),
@@ -556,4 +556,3 @@ function fill(template, values) {
 }
 
 main();
-

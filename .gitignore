@@ -9,6 +9,14 @@ data/
 plan.md
 reports/
 output/
+docs/
+*.pdf
+ADRA-Logo/
+ADRA-Logo.zip
+/.venv/
+python/sidecar/venv/
+scripts/build_model_card_pdf.mjs
+scripts/test_extraction.mjs
 # Tesseract language file — tesseract.js downloads this automatically at runtime
 eng.traineddata
 # models/ is intentionally NOT ignored — severity_lr.json + severity_nb.json must be deployed

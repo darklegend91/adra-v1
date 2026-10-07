@@ -42,6 +42,8 @@ export function publicUser(user) {
     email: user.email,
     role: user.role,
     center: user.center || user.centerName || "",
+    centerName: user.centerName || user.center || "",
+    pvpiOfficerNumber: user.pvpiOfficerNumber || "",
     approvalStatus: user.approvalStatus || "approved"
   };
 }

@@ -1,0 +1,34 @@
+# ── Server ────────────────────────────────────────────────────────────────────
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+
+# ── OCR support libs (always available) ──────────────────────────────────────
+# paddlepaddle + paddleocr are NOT listed here — they have no Python 3.13/3.14
+# wheels yet. start.sh tries to install them separately with || true so a
+# missing wheel never breaks the rest of the setup.
+# When paddle is absent, the /ocr endpoint is disabled and Node falls back
+# to Tesseract.js automatically.
+opencv-python-headless>=4.9.0
+numpy>=1.26.0
+
+# ── PDF table extraction ──────────────────────────────────────────────────────
+pdfplumber>=0.11.0
+
+# ── Clinical NER (scispaCy) ───────────────────────────────────────────────────
+spacy>=3.7.0
+# en_ner_bc5cdr_md is installed by start.sh (best-effort).
+# Falls back to en_core_web_sm if bc5cdr build fails (Python 3.13+).
+
+# ── Translation (IndicTrans2) ─────────────────────────────────────────────────
+transformers>=4.40.0
+torch>=2.0.0
+sentencepiece>=0.2.0
+
+# ── Voice (faster-whisper) ────────────────────────────────────────────────────
+faster-whisper>=1.0.0
+
+# ── Language detection (fastText) ─────────────────────────────────────────────
+fasttext-wheel>=0.9.2
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+Pillow>=10.0.0

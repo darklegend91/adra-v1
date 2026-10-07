@@ -145,6 +145,8 @@ export function buildMlAnalytics(reports) {
 
 function normaliseReport(report) {
   const scoreSnapshot = report.scoreSnapshots?.[report.scoreSnapshots.length - 1] || {};
+  const missingFields = scoreSnapshot.missingFields || report.missingFields || [];
+  const missingMedicineOrReaction = isMissingRequiredReportValue(report.medicineName || report.medicine) || isMissingRequiredReportValue(report.adverseReaction);
   return {
     id: report.reportNumber || report.id,
     patientToken: report.extractedFields?.patient?.patientToken || "",
@@ -155,12 +157,12 @@ function normaliseReport(report) {
     score: Number(scoreSnapshot.score || report.score || 0),
     route: scoreSnapshot.route || report.status || "",
     confidence: Number(report.confidence?.overall || report.confidence || 0),
-    missingFields: scoreSnapshot.missingFields || report.missingFields || [],
+    missingFields,
     sourceHash: report.sourceHash || "",
     caseRelation: report.caseRelation || report.relation || "new",
     hasGroundTruth: Boolean(report.seriousness || report.status || scoreSnapshot.route),
     actualSerious: SERIOUS_LABELS.has(report.seriousness || ""),
-    actualReady: (scoreSnapshot.route || report.status) === "ready_for_processing",
+    actualReady: !missingMedicineOrReaction && (scoreSnapshot.route || report.status) === "ready_for_processing",
     actualDuplicate: ["duplicate", "followup"].includes(report.caseRelation || report.relation)
   };
 }
@@ -170,7 +172,12 @@ function predictSerious(row) {
 }
 
 function predictReady(row) {
-  return row.missingFields.length === 0 && row.confidence >= 0.65 && row.score >= 70;
+  return !isMissingRequiredReportValue(row.medicine) && !isMissingRequiredReportValue(row.reaction) && row.missingFields.length === 0 && row.confidence >= 0.65 && row.score >= 70;
+}
+
+function isMissingRequiredReportValue(value) {
+  const cleaned = String(value || "").trim().toLowerCase();
+  return !cleaned || ["not extracted", "unknown", "n/a", "na", "none", "null", "-"].includes(cleaned) || /^\(?[a-z]\)?\s*[*x×.\-]*$/.test(cleaned);
 }
 
 function predictDuplicate(row, rows) {

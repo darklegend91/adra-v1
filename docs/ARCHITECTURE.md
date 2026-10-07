@@ -13,10 +13,10 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Browser — React 19 + Vite                                          │
-│  19 dashboard pages · JWT Bearer · localStorage session             │
+│  Dashboard pages · JWT Bearer · localStorage session                │
 │  Overview · Intake · Records · Medicine · Pivot · Cohorts           │
 │  Confidence · AI/ML · Anonymisation · RAG · Guidelines · Queue      │
-│  Compare · Relations · Inspection · Annexure I · Audit              │
+│  Relations · Annexure I · Audit                                     │
 └───────────────────────────┬─────────────────────────────────────────┘
                             │ HTTPS / Bearer JWT
                             ▼
@@ -219,10 +219,6 @@ Token vault (production):
 | GET | /api/anonymisation/samples | JWT | Raw → pseudonymised → anonymised |
 | POST | /api/summarise | JWT | SAE/checklist/meeting summary |
 | POST | /api/ocr | JWT | Tesseract OCR + PII bounding boxes |
-| POST | /api/inspection/process | JWT | Inspection report generation |
-| GET | /api/inspection/template | JWT | CDSCO template schema |
-| POST | /api/completeness | JWT | Field-level completeness report |
-| POST | /api/compare | JWT | Document version diff |
 | GET | /api/audit | JWT+admin | Audit event log |
 | GET/POST | /api/guidelines | JWT | Guideline profile CRUD |
 | POST | /api/rag/query | JWT | Keyword RAG over anonymised chunks |
@@ -242,9 +238,7 @@ MongoDB reports collection
   ├── /api/privacy-metrics   privacyMetrics.js → k/l/t on analytics copy
   ├── /api/anonymisation/samples  raw→pseudonymised→anonymised worked examples
   ├── /api/reviewer/queue    priority scoring → urgent/high/normal/low
-  ├── /api/compare           documentComparison.js → section diff
   ├── /api/summarise         summariser.js → SAE/checklist/meeting
-  ├── /api/completeness      nlpExtractor + scoringModel → field-level flags
   └── /api/guidelines        GuidelineProfile → versioned scoring rules
 ```
 
@@ -316,7 +310,6 @@ Compliance: DPDP Act 2023 · NDHM · ICMR · CDSCO Schedule Y · CERT-In
 | Summarisation | TF-IDF extractive (server/ai/summariser.js) |
 | Severity classifier (ML) | TF-IDF + Gradient Boosting (scikit-learn) |
 | Severity classifier (rule) | Label-map + keyword regex (severityClassifier.js) |
-| Document comparison | Section-aware Jaccard diff (documentComparison.js) |
 | ROUGE evaluation | rouge-score Python library (scripts/evaluate_rouge.py) |
 | JS evaluation harness | scripts/evaluate.js |
 | Python evaluation harness | scripts/evaluate_all.py + sub-scripts |
